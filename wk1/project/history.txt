@@ -1,0 +1,64 @@
+    1  firefox
+    2  vin test.txt
+    3  vim test.txt
+    4  firefox
+    5  firefox&
+    6  mkdir lab2
+    7  cd lab2
+    8  emacs p1.c &
+    9  emacs p1.sh &
+   10  ./p1.sh ana are 
+   11  ./p1.sh 1 2
+   12  #!/bin/bash
+   13  ls
+   14  ls -a
+   15  clear
+   16  mkdir my_project
+   17  mkdir my_project/src
+   18  mkdir my_project/data
+   19  echo "This is some random text" > my_project/data/data.txt
+   20  cat << EOF > my_project/src/index.c
+   21  #include <stdio.h>
+   22  #include <stdlib.h>
+   23  clear
+   24  history
+   25  clear
+   26  mkdir project
+   27  cd project
+   28  mkdir data
+   29  mkdir src
+   30  echo "This is some random text" > data/data.txt
+   31  touch src/index.c
+   32  ln -s $(data/data.txt) src/data_link.txt
+   33  ln -s $(realpath data/data.txt) src/data_link.txt
+   34  chmod 400 data/data.txt
+   35  cat << EOF > src/index.c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char *argv[]){
+if(argc!=4){
+printf("Usage: %s num1 num2 num3\n",argv[0]);
+return 1;
+}
+int num1 = atoi(argv[1]);
+int num2 = atoi(argv[2]);
+int num3 = atoi(argv[3]);
+int sum = num1+num2+num3;
+FILE *file=fopen("../data/result.txt","w");
+if(file == NULL){
+perror("Error opening file");
+return 1;
+}
+fprintf(file, "Sum: %d\n", sum);
+fclose(file);
+return 0;
+}
+
+   36  ls
+   37  gcc src/index.c -o src/index
+   38  cp data/data.txt data/data_backup.txt
+   39  chmod 444 data/data_backup.txt
+   40  clear
+   41  find . -type f ! \( -name "*.c" -o -name "*.txt" \) -delete
+   42  history > history.txt
