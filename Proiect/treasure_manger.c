@@ -111,35 +111,61 @@ void add_treasure(const char *hunt_id, const char *treasure_id) {
 
     Treasure treasure;
     treasure.id = atoi(treasure_id); // Use the provided treasure ID
+
     printf("Enter Username: ");
-    scanf("%s", treasure.username);
+    if (scanf("%49s", treasure.username) != 1) {
+        perror("Error reading username");
+        close(fd);
+        return;
+    }
+
     printf("Enter Latitude: ");
-    scanf("%f", &treasure.latitude);
+    if (scanf("%f", &treasure.latitude) != 1) {
+        perror("Error reading latitude");
+        close(fd);
+        return;
+    }
+
     printf("Enter Longitude: ");
-    scanf("%f", &treasure.longitude);
+    if (scanf("%f", &treasure.longitude) != 1) {
+        perror("Error reading longitude");
+        close(fd);
+        return;
+    }
+
     printf("Enter Clue: ");
     getchar(); // Consume newline
-    fgets(treasure.clue, MAX_CLUE_LENGTH, stdin);
-    treasure.clue[strcspn(treasure.clue, "\n")] = '\0'; // Remove newline
-    printf("Enter Value: ");
-    scanf("%d", &treasure.value);
-
-    if (write(fd, &treasure, sizeof(Treasure)) == -1) {
-        perror("Error writing to treasure file");
-    } else {
-        printf("Treasure '%s' added successfully to hunt '%s'.\n", treasure_id, hunt_id);
-        log_operation(hunt_id, "add_treasure");
+    if (fgets(treasure.clue, MAX_CLUE_LENGTH, stdin) == NULL) {
+        perror("Error reading clue");
+        close(fd);
+        return;
     }
+    treasure.clue[strcspn(treasure.clue, "\n")] = '\0'; // Remove newline
+
+    printf("Enter Value: ");
+    if (scanf("%d", &treasure.value) != 1) {
+        perror("Error reading value");
+        close(fd);
+        return;
+    }
+
+    // Write treasure to file
+    ssize_t bytes_written = write(fd, &treasure, sizeof(Treasure));
+    if (bytes_written != sizeof(Treasure)) {
+        perror("Error writing full treasure to file");
+        close(fd);
+        return;
+    }
+
+    printf("Treasure '%s' added successfully to hunt '%s'.\n", treasure_id, hunt_id);
+    log_operation(hunt_id, "add_treasure");
 
     close(fd);
 }
 
 void list_treasures(const char *hunt_id) {
     char file_path[256];
-    printf("%s\n", hunt_id);
     snprintf(file_path, sizeof(file_path), "hunt/%s/%s", hunt_id, TREASURE_FILE);
-
-    printf("Debug: File path is '%s'\n", file_path);
 
     // Get file information
     struct stat file_stat;
@@ -172,8 +198,8 @@ void list_treasures(const char *hunt_id) {
 
 void view_treasure(const char *hunt_id, int treasure_id) {
     char file_path[256];
-    snprintf(file_path, sizeof(file_path), "%s/%s", hunt_id, TREASURE_FILE);
-
+    snprintf(file_path, sizeof(file_path), "hunt/%s/%s", hunt_id, TREASURE_FILE);
+    printf("%s\n", file_path);
     int fd = open(file_path, O_RDONLY);
     if (fd == -1) {
         perror("Error opening treasure file");
@@ -181,16 +207,17 @@ void view_treasure(const char *hunt_id, int treasure_id) {
     }
 
     Treasure treasure;
+    int found = 0;
     while (read(fd, &treasure, sizeof(Treasure)) > 0) {
         if (treasure.id == treasure_id) {
             printf("ID: %d, Username: %s, Latitude: %.2f, Longitude: %.2f, Clue: %s, Value: %d\n",
                    treasure.id, treasure.username, treasure.latitude, treasure.longitude, treasure.clue, treasure.value);
-            close(fd);
-            return;
+            found = 1;
         }
     }
-
-    printf("Treasure with ID %d not found.\n", treasure_id);
+    if(!found){
+        printf("Treasure with ID %d not found.\n", treasure_id);
+    }
     close(fd);
 }
 
