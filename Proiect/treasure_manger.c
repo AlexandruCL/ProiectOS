@@ -31,47 +31,50 @@ void remove_hunt(const char *hunt_id);
 void log_operation(const char *hunt_id, const char *operation);
 
 int main(int argc, char *argv[]) {
-        if (argc < 3) {
-            fprintf(stderr, "Usage: %s <operation> <hunt_id> [additional arguments]\n", argv[0]);
-            return EXIT_FAILURE;
-        }
-
-        const char *operation = argv[1];
-        const char *hunt_id = argv[2];
-
-        if (strcmp(operation, "add") == 0) {
-            if (argc == 3) {
-                // Only hunt ID is provided, create the hunt
-                add_treasure(hunt_id, NULL);
-            } else if (argc == 4) {
-                // Hunt ID and treasure ID are provided, add a treasure
-                const char *treasure_id = argv[3];
-                add_treasure(hunt_id, treasure_id);
-        } else if (strcmp(operation, "list") == 0) {
-            list_treasures(hunt_id);
-        } else if (strcmp(operation, "view") == 0) {
-            if (argc < 4) {
-                fprintf(stderr, "Usage: %s view <hunt_id> <treasure_id>\n", argv[0]);
-                return EXIT_FAILURE;
-            }
-            int treasure_id = atoi(argv[3]);
-            view_treasure(hunt_id, treasure_id);
-        } else if (strcmp(operation, "remove_treasure") == 0) {
-            if (argc < 4) {
-                fprintf(stderr, "Usage: %s remove_treasure <hunt_id> <treasure_id>\n", argv[0]);
-                return EXIT_FAILURE;
-            }
-            int treasure_id = atoi(argv[3]);
-            remove_treasure(hunt_id, treasure_id);
-        } else if (strcmp(operation, "remove_hunt") == 0) {
-            remove_hunt(hunt_id);
-        } else {
-            fprintf(stderr, "Unknown operation: %s\n", operation);
-            return EXIT_FAILURE;
-        }
-
-        return EXIT_SUCCESS;
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <operation> <hunt_id> [additional arguments]\n", argv[0]);
+        return EXIT_FAILURE;
     }
+
+    const char *operation = argv[1];
+    const char *hunt_id = argv[2];
+
+    if (strcmp(operation, "add") == 0) {
+        if (argc == 3) {
+            // Only hunt ID is provided, create the hunt
+            add_treasure(hunt_id, NULL);
+        } else if (argc == 4) {
+            // Hunt ID and treasure ID are provided, add a treasure
+            const char *treasure_id = argv[3];
+            add_treasure(hunt_id, treasure_id);
+        } else {
+            fprintf(stderr, "Usage: %s add <hunt_id> [treasure_id]\n", argv[0]);
+            return EXIT_FAILURE;
+        }
+    } else if (strcmp(operation, "list") == 0) {
+        list_treasures(hunt_id);
+    } else if (strcmp(operation, "view") == 0) {
+        if (argc < 4) {
+            fprintf(stderr, "Usage: %s view <hunt_id> <treasure_id>\n", argv[0]);
+            return EXIT_FAILURE;
+        }
+        int treasure_id = atoi(argv[3]);
+        view_treasure(hunt_id, treasure_id);
+    } else if (strcmp(operation, "remove_treasure") == 0) {
+        if (argc < 4) {
+            fprintf(stderr, "Usage: %s remove_treasure <hunt_id> <treasure_id>\n", argv[0]);
+            return EXIT_FAILURE;
+        }
+        int treasure_id = atoi(argv[3]);
+        remove_treasure(hunt_id, treasure_id);
+    } else if (strcmp(operation, "remove_hunt") == 0) {
+        remove_hunt(hunt_id);
+    } else {
+        fprintf(stderr, "Unknown operation: %s\n", operation);
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }
 
 void add_treasure(const char *hunt_id, const char *treasure_id) {
@@ -133,8 +136,12 @@ void add_treasure(const char *hunt_id, const char *treasure_id) {
 
 void list_treasures(const char *hunt_id) {
     char file_path[256];
-    snprintf(file_path, sizeof(file_path), "%s/%s", hunt_id, TREASURE_FILE);
+    printf("%s\n", hunt_id);
+    snprintf(file_path, sizeof(file_path), "hunt/%s/%s", hunt_id, TREASURE_FILE);
 
+    printf("Debug: File path is '%s'\n", file_path);
+
+    // Get file information
     struct stat file_stat;
     if (stat(file_path, &file_stat) == -1) {
         perror("Error retrieving file information");
@@ -145,12 +152,14 @@ void list_treasures(const char *hunt_id) {
     printf("File Size: %ld bytes\n", file_stat.st_size);
     printf("Last Modified: %s", ctime(&file_stat.st_mtime));
 
+    // Open the treasures file
     int fd = open(file_path, O_RDONLY);
     if (fd == -1) {
         perror("Error opening treasure file");
         return;
     }
 
+    // Read and display treasures
     Treasure treasure;
     printf("Treasures:\n");
     while (read(fd, &treasure, sizeof(Treasure)) > 0) {
