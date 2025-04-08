@@ -1,0 +1,162 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <time.h>
+
+FILE *log_file = NULL;
+
+void log_action(const char *format, ...) {
+    if (!log_file) return;
+
+    va_list args;
+    va_start(args, format);
+
+    time_t now = time(NULL);
+    char timestr[32];
+    strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S", localtime(&now));
+
+    fprintf(log_file, "[%s] ", timestr);
+    vfprintf(log_file, format, args);
+    fprintf(log_file, "\n");
+    fflush(log_file);
+
+    va_end(args);
+}
+
+void copy_permissions(const char *src, const char *dst) {
+    struct stat st;
+    if (stat(src, &st) == 0) {
+        chmod(dst, st.st_mode);
+    }
+}
+
+int copy_file(const char *src, const char *dst) {
+    int in_fd = open(src, O_RDONLY);
+    if (in_fd < 0) {
+        log_action("Failed to open source file: %s", src);
+        return -1;
+    }
+
+    int out_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (out_fd < 0) {
+        log_action("Failed to open/create destination file: %s", dst);
+        close(in_fd);
+        return -1;
+    }
+
+    char buffer[8192];
+    ssize_t bytes;
+    while ((bytes = read(in_fd, buffer, sizeof(buffer))) > 0) {
+        if (write(out_fd, buffer, bytes) != bytes) {
+            log_action("Failed writing to file: %s", dst);
+            close(in_fd);
+            close(out_fd);
+            return -1;
+        }
+    }
+
+    close(in_fd);
+    close(out_fd);
+    copy_permissions(src, dst);
+    log_action("File copied: %s -> %s", src, dst);
+    return 0;
+}
+
+int copy_symlink(const char *src, const char *dst) {
+    char target[PATH_MAX];
+    ssize_t len = readlink(src, target, sizeof(target) - 1);
+    if (len == -1) {
+        log_action("Failed to read symlink: %s", src);
+        return -1;
+    }
+    target[len] = '\0';
+
+    if (symlink(target, dst) < 0) {
+        log_action("Failed to create symlink: %s -> %s", dst, target);
+        return -1;
+    }
+
+    log_action("Symlink copied: %s -> %s", src, dst);
+    return 0;
+}
+
+int copy_dir(const char *src, const char *dst) {
+    struct stat st;
+
+    if (lstat(src, &st) < 0) {
+        log_action("lstat failed on %s: %s", src, strerror(errno));
+        return -1;
+    }
+
+    if (S_ISLNK(st.st_mode)) {
+        return copy_symlink(src, dst);
+    } else if (S_ISREG(st.st_mode)) {
+        return copy_file(src, dst);
+    } else if (S_ISDIR(st.st_mode)) {
+        if (mkdir(dst, st.st_mode) < 0 && errno != EEXIST) {
+            log_action("mkdir failed for %s: %s", dst, strerror(errno));
+            return -1;
+        }
+
+        DIR *dir = opendir(src);
+        if (!dir) {
+            log_action("Failed to open directory: %s", src);
+            return -1;
+        }
+
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+
+            char src_path[PATH_MAX], dst_path[PATH_MAX];
+            snprintf(src_path, sizeof(src_path), "%s/%s", src, entry->d_name);
+            snprintf(dst_path, sizeof(dst_path), "%s/%s", dst, entry->d_name);
+
+            copy_dir(src_path, dst_path);
+        }
+
+        closedir(dir);
+        copy_permissions(src, dst);
+        log_action("Directory copied: %s -> %s", src, dst);
+    } else {
+        log_action("Skipped unsupported file type: %s", src);
+    }
+
+    return 0;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s source_dir target_dir\n", argv[0]);
+        return 1;
+    }
+
+    log_file = fopen("copy.log", "a");
+    if (!log_file) {
+        perror("Unable to open log file");
+        return 1;
+    }
+
+    char *src = realpath(argv[1], NULL);
+    if (!src) {
+        perror("realpath source");
+        fclose(log_file);
+        return 1;
+    }
+
+    const char *dst = argv[2];
+    copy_dir(src, dst);
+
+    free(src);
+    fclose(log_file);
+    return 0;
+}
