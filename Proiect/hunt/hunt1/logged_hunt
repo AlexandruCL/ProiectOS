@@ -11,3 +11,7 @@
 [Sun Apr 13 19:10:12 2025] view_hunt: Viewed treasure ID 2, Username: asdad, Latitude: 5.00, Longitude: 5.00, Clue: 5, Value: 5
 [Sun Apr 13 19:11:41 2025] view_treasure: Viewed treasure ID 2, Username: asdad, Latitude: 5.00, Longitude: 5.00, Clue: 5, Value: 5
 [Sun Apr 13 19:13:03 2025] list_hunt: Listed all treasures in hunt 'hunt1'
+[Sun Apr 13 19:16:59 2025] add_treasure: Added treasure ID 1, Username: alex, Latitude: 1.00, Longitude: 1.00, Clue: 1, Value: 1
+[Sun Apr 13 19:17:04 2025] list_hunt: Listed all treasures in hunt 'hunt1'
+[Sun Apr 13 19:17:26 2025] remove_treasure: Removed treasure ID 1 and reindexed remaining treasures
+[Sun Apr 13 19:17:43 2025] list_hunt: Listed all treasures in hunt 'hunt1'

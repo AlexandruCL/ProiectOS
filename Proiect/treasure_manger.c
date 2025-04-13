@@ -274,16 +274,18 @@ void view_treasure(const char *hunt_id, int treasure_id) {
 
 void remove_treasure(const char *hunt_id, int treasure_id) {
     char file_path[256];
-    snprintf(file_path, sizeof(file_path), "%s/%s", hunt_id, TREASURE_FILE);
+    snprintf(file_path, sizeof(file_path), "hunt/%s/%s", hunt_id, TREASURE_FILE);
 
+    // Open the treasures file for reading
     int fd = open(file_path, O_RDONLY);
     if (fd == -1) {
         perror("Error opening treasure file");
         return;
     }
 
+    // Create a temporary file to store the updated treasures
     char temp_file_path[256];
-    snprintf(temp_file_path, sizeof(temp_file_path), "%s/temp.dat", hunt_id);
+    snprintf(temp_file_path, sizeof(temp_file_path), "hunt/%s/temp.dat", hunt_id);
 
     int temp_fd = open(temp_file_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (temp_fd == -1) {
@@ -294,11 +296,23 @@ void remove_treasure(const char *hunt_id, int treasure_id) {
 
     Treasure treasure;
     int found = 0;
+
+    // Read treasures from the original file and process them
     while (read(fd, &treasure, sizeof(Treasure)) > 0) {
         if (treasure.id == treasure_id) {
-            found = 1;
+            found = 1; // Mark that the treasure was found
         } else {
-            write(temp_fd, &treasure, sizeof(Treasure));
+            // If the treasure ID is greater than the removed ID, decrement it
+            if (treasure.id > treasure_id) {
+                treasure.id -= 1;
+            }
+            if (write(temp_fd, &treasure, sizeof(Treasure)) != sizeof(Treasure)) {
+                perror("Error writing to temporary file");
+                close(fd);
+                close(temp_fd);
+                unlink(temp_file_path);
+                return;
+            }
         }
     }
 
@@ -306,15 +320,19 @@ void remove_treasure(const char *hunt_id, int treasure_id) {
     close(temp_fd);
 
     if (found) {
+        // Replace the original file with the updated temporary file
         if (rename(temp_file_path, file_path) == -1) {
             perror("Error renaming temporary file");
+            unlink(temp_file_path);
         } else {
-            printf("Treasure removed successfully.\n");
-            log_operation(hunt_id, "remove_treasure", "Treasure removed");
+            printf("Treasure with ID %d removed successfully from hunt '%s'.\n", treasure_id, hunt_id);
+            char log_details[256];
+            snprintf(log_details, sizeof(log_details), "Removed treasure ID %d and reindexed remaining treasures", treasure_id);
+            log_operation(hunt_id, "remove_treasure", log_details);
         }
     } else {
-        printf("Treasure with ID %d not found.\n", treasure_id);
-        unlink(temp_file_path);
+        printf("Treasure with ID %d not found in hunt '%s'.\n", treasure_id, hunt_id);
+        unlink(temp_file_path); // Clean up the temporary file
     }
 }
 
