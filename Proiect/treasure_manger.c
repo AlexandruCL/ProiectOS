@@ -24,7 +24,7 @@ typedef struct {
 
 // Function prototypes
 void add_treasure(const char *hunt_id, const char *treasure_id);
-void list_treasures(const char *hunt_id);
+void list_hunt(const char *hunt_id);
 void view_treasure(const char *hunt_id, int treasure_id);
 void remove_treasure(const char *hunt_id, int treasure_id);
 void remove_hunt(const char *hunt_id);
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
     } else if (strcmp(operation, "list") == 0) {
-        list_treasures(hunt_id);
+        list_hunt(hunt_id);
     } else if (strcmp(operation, "view") == 0) {
         if (argc < 4) {
             fprintf(stderr, "Usage: %s view <hunt_id> <treasure_id>\n", argv[0]);
@@ -206,7 +206,7 @@ void add_treasure(const char *hunt_id, const char *treasure_id) {
     close(fd);
 }
 
-void list_treasures(const char *hunt_id) {
+void list_hunt(const char *hunt_id) {
     char file_path[256];
     snprintf(file_path, sizeof(file_path), "hunt/%s/%s", hunt_id, TREASURE_FILE);
 
@@ -238,9 +238,8 @@ void list_treasures(const char *hunt_id) {
 
     close(fd);
     char log_details[512];
-    snprintf(log_details, sizeof(log_details), "Viewed treasure ID %d, Username: %s, Latitude: %.2f, Longitude: %.2f, Clue: %s, Value: %d",
-             treasure.id, treasure.username, treasure.latitude, treasure.longitude, treasure.clue, treasure.value);
-    log_operation(hunt_id, "view_treasure", log_details);
+    snprintf(log_details, sizeof(log_details), "Listed all treasures in hunt '%s'", hunt_id);
+    log_operation(hunt_id, "list_hunt", log_details);
 }
 
 void view_treasure(const char *hunt_id, int treasure_id) {
