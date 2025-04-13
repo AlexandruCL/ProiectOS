@@ -1,7 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#ifdef _WIN32
-#include <windows.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +7,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
+#include <limits.h>
 #define MAX_CLUE_LENGTH 256
 #define TREASURE_FILE "treasures.dat"
 #define LOG_FILE "logged_hunt"
@@ -90,22 +88,22 @@ int main(int argc, char *argv[]) {
 }
 
 void add_treasure(const char *hunt_id, const char *treasure_id) {
-    char dir_path[256];
+    char dir_path[PATH_MAX];
     snprintf(dir_path, sizeof(dir_path), "hunt/%s", hunt_id);
 
     // Create the hunt directory if it doesn't exist
-    if (mkdir("hunt") == -1 && errno != EEXIST) {
+    if (mkdir("hunt", 0755) == -1 && errno != EEXIST) {
         perror("Error creating hunt directory");
         return;
     }
 
-    if (mkdir(dir_path) == -1 && errno != EEXIST) {
+    if (mkdir(dir_path,0755) == -1 && errno != EEXIST) {
         perror("Error creating hunt subdirectory");
         return;
     }
 
     // Create the logs directory in the root folder if it doesn't exist
-    if (mkdir("logs") == -1 && errno != EEXIST) {
+    if (mkdir("logs", 0755) == -1 && errno != EEXIST) {
         perror("Error creating logs directory");
         return;
     }
@@ -115,40 +113,34 @@ void add_treasure(const char *hunt_id, const char *treasure_id) {
         printf("Hunt '%s' created successfully.\n", hunt_id);
         log_operation(hunt_id, "create_hunt", "Hunt created");
             // Ensure log file exists
-        char log_file_path[256];
-        snprintf(log_file_path, sizeof(log_file_path), "hunt/%s/logged_hunt", hunt_id);
-        int fd = open(log_file_path, O_CREAT | O_WRONLY, 0644);
-        if (fd != -1) close(fd);
-
-        // Create symlink
-        char symlink_path[256];
-        snprintf(symlink_path, sizeof(symlink_path), "logs/logs_%s", hunt_id);
-
-        // Remove old symlink if exists
-        remove(symlink_path);
-
-    #ifdef _WIN32
-        if (!CreateSymbolicLinkA(symlink_path, log_file_path, 0)) {
-            fprintf(stderr, "Error creating symbolic link in logs folder: %ld\n", GetLastError());
-            log_operation(hunt_id, "create_symlink", "Failed to create symlink");
-        } else {
-            printf("Symlink created: %s -> %s\n", symlink_path, log_file_path);
-            log_operation(hunt_id, "create_symlink", "Symlink created successfully");
-        }
-    #else
-        if (symlink(log_file_path, symlink_path) == -1) {
-            perror("Error creating symbolic link in logs folder");
-            log_operation(hunt_id, "create_symlink", "Failed to create symlink");
-        } else {
-            printf("Symlink created: %s -> %s\n", symlink_path, log_file_path);
-            log_operation(hunt_id, "create_symlink", "Symlink created successfully");
-        }
-    #endif
+            char log_file_path[PATH_MAX];
+            snprintf(log_file_path, sizeof(log_file_path), "%s/hunt/%s/logged_hunt", getcwd(NULL, 0), hunt_id);
+            int fd = open(log_file_path, O_CREAT | O_WRONLY, 0644);
+            if (fd == -1) {
+                perror("Error creating log file");
+                return;
+            }
+            close(fd);
+            
+            // Create symlink
+            char symlink_path[PATH_MAX];
+            snprintf(symlink_path, sizeof(symlink_path), "%s/logs/logs_%s", getcwd(NULL, 0), hunt_id);
+            
+            // Remove old symlink if it exists
+            remove(symlink_path);
+            
+            if (symlink(log_file_path, symlink_path) == -1) {
+                perror("Error creating symbolic link in logs folder");
+                log_operation(hunt_id, "create_symlink", "Failed to create symlink");
+            } else {
+                printf("Symlink created: %s -> %s\n", symlink_path, log_file_path);
+                log_operation(hunt_id, "create_symlink", "Symlink created successfully");
+            }
         return;
     }
 
     // Add a treasure to the hunt
-    char file_path[256];
+    char file_path[PATH_MAX];
     snprintf(file_path, sizeof(file_path), "%s/treasures.dat", dir_path);
 
     int fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
@@ -329,31 +321,46 @@ void remove_treasure(const char *hunt_id, int treasure_id) {
 
 void remove_hunt(const char *hunt_id) {
     char dir_path[256];
-    snprintf(dir_path, sizeof(dir_path), "%s", hunt_id);
+    snprintf(dir_path, sizeof(dir_path), "hunt/%s", hunt_id);
 
-    char file_path[256];
-    snprintf(file_path, sizeof(file_path), "%s/%s", dir_path, TREASURE_FILE);
+    char treasure_file_path[256];
+    snprintf(treasure_file_path, sizeof(treasure_file_path), "%s/%s", dir_path, TREASURE_FILE);
 
-    if (unlink(file_path) == -1) {
+    log_operation(hunt_id, "remove_hunt", "Hunt removed and log file moved");
+    // Delete the treasure file if it exists
+    if (unlink(treasure_file_path) == -1 && errno != ENOENT) {
         perror("Error deleting treasure file");
         return;
     }
 
-    char log_path[256];
-    snprintf(log_path, sizeof(log_path), "%s/%s", dir_path, LOG_FILE);
+    char log_file_path[256];
+    snprintf(log_file_path, sizeof(log_file_path), "%s/%s", dir_path, LOG_FILE);
 
-    if (unlink(log_path) == -1) {
-        perror("Error deleting log file");
+    // Move the log file to the root logs folder
+    char final_log_path[256];
+    snprintf(final_log_path, sizeof(final_log_path), "logs/final_logs%s", hunt_id);
+
+    if (rename(log_file_path, final_log_path) == -1) {
+        perror("Error moving log file to logs folder");
         return;
     }
 
+    // Delete the symlink from the logs folder
+    char symlink_path[256];
+    snprintf(symlink_path, sizeof(symlink_path), "logs/logs_%s", hunt_id);
+    if (unlink(symlink_path) == -1 && errno != ENOENT) {
+        perror("Error deleting symlink from logs folder");
+        return;
+    }
+    
+    // Delete the hunt directory
     if (rmdir(dir_path) == -1) {
         perror("Error deleting hunt directory");
         return;
     }
 
-    printf("Hunt removed successfully.\n");
-    log_operation(hunt_id, "remove_hunt", "Hunt removed");
+    printf("Hunt '%s' removed successfully. Log file moved to '%s'.\n", hunt_id, final_log_path);
+    
 }
 
 void log_operation(const char *hunt_id, const char *operation, const char *details) {
