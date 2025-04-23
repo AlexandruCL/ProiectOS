@@ -58,16 +58,43 @@ void send_command_to_monitor(const char *command) {
         return;
     }
 
+    char full_command[256];
+    snprintf(full_command, sizeof(full_command), "%s", command);
+
+    if (strcmp(command, "list_hunt") == 0 || strcmp(command, "view_treasure") == 0) {
+        char hunt_id[128];
+        printf("Enter hunt ID: ");
+        if (!fgets(hunt_id, sizeof(hunt_id), stdin)) {
+            perror("Error reading hunt ID");
+            return;
+        }
+        hunt_id[strcspn(hunt_id, "\n")] = '\0'; // Remove newline
+        strncat(full_command, " ", sizeof(full_command) - strlen(full_command) - 1);
+        strncat(full_command, hunt_id, sizeof(full_command) - strlen(full_command) - 1);
+
+        if (strcmp(command, "view_treasure") == 0) {
+            char treasure_id[128];
+            printf("Enter treasure ID: ");
+            if (!fgets(treasure_id, sizeof(treasure_id), stdin)) {
+                perror("Error reading treasure ID");
+                return;
+            }
+            treasure_id[strcspn(treasure_id, "\n")] = '\0'; // Remove newline
+            strncat(full_command, " ", sizeof(full_command) - strlen(full_command) - 1);
+            strncat(full_command, treasure_id, sizeof(full_command) - strlen(full_command) - 1);
+        }
+    }
+
     FILE *command_file = fopen("monitor_command.txt", "w");
     if (!command_file) {
         perror("Error opening command file");
         return;
     }
 
-    fprintf(command_file, "%s\n", command); 
+    fprintf(command_file, "%s\n", full_command); // Write the full command to the file
     fclose(command_file);
 
-    kill(monitor_pid, SIGUSR1); 
+    kill(monitor_pid, SIGUSR1); // Notify the monitor of the new command
 }
 
 int main() {
@@ -87,10 +114,10 @@ int main() {
 
         if (strcmp(input, "start_monitor") == 0) {
             start_monitor();
-        } else if (strcmp(input, "list_hunts") == 0) {
-            send_command_to_monitor("list_hunts");
-        } else if (strcmp(input, "list_treasures") == 0) {
-            send_command_to_monitor("list_treasures");
+        // } else if (strcmp(input, "list_hunts") == 0) {
+        //     send_command_to_monitor("list_hunts");
+        } else if (strcmp(input, "list_hunt") == 0) {
+            send_command_to_monitor("list_hunt");
         } else if (strcmp(input, "view_treasure") == 0) {
             send_command_to_monitor("view_treasure");
         } else if (strcmp(input, "stop_monitor") == 0) {

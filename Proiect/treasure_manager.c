@@ -421,8 +421,34 @@ void handle_sigusr1(int sig) {
 
     char command[256];
     if (fgets(command, sizeof(command), command_file)) {
-        command[strcspn(command, "\n")] = '\0'; 
+        command[strcspn(command, "\n")] = '\0'; // Remove newline
         printf("Executing command: %s\n", command);
+
+        // Parse the command
+        char *operation = strtok(command, " ");
+        char *hunt_id = strtok(NULL, " ");
+        char *treasure_id = strtok(NULL, " ");
+
+        if (strcmp(operation, "list_hunts") == 0) {
+            printf("Listing all hunts...\n");
+            // Call the appropriate function (e.g., list all hunts)
+        } else if (strcmp(operation, "list_hunt") == 0) {
+            if (hunt_id) {
+                printf("Listing treasures for hunt ID: %s\n", hunt_id);
+                list_hunt(hunt_id); // Call the function to list treasures
+            } else {
+                printf("Error: Hunt ID is required for list_treasures.\n");
+            }
+        } else if (strcmp(operation, "view_treasure") == 0) {
+            if (hunt_id && treasure_id) {
+                printf("Viewing treasure ID %s in hunt ID: %s\n", treasure_id, hunt_id);
+                view_treasure(hunt_id, atoi(treasure_id)); // Call the function to view a treasure
+            } else {
+                printf("Error: Hunt ID and Treasure ID are required for view_treasure.\n");
+            }
+        } else {
+            printf("Unknown command: %s\n", operation);
+        }
     }
     fclose(command_file);
 }
