@@ -397,3 +397,26 @@ void log_operation(const char *hunt_id, const char *operation, const char *detai
     fprintf(log_file, "[%s] %s: %s\n", timestamp, operation, details);
     fclose(log_file);
 }
+
+void handle_sigusr1(int sig) {
+    (void)sig;
+    FILE *command_file = fopen("monitor_command.txt", "r");
+    if (!command_file) {
+        perror("Error opening command file");
+        return;
+    }
+
+    char command[256];
+    if (fgets(command, sizeof(command), command_file)) {
+        command[strcspn(command, "\n")] = '\0'; 
+        printf("Executing command: %s\n", command);
+    }
+    fclose(command_file);
+}
+
+void handle_sigusr2(int sig) {
+    (void)sig;
+    printf("Monitor process terminating...\n");
+    usleep(500000); 
+    exit(0);
+}
