@@ -8,6 +8,7 @@
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
+#include <signal.h>
 #define MAX_CLUE_LENGTH 256
 #define TREASURE_FILE "treasures.dat"
 #define LOG_FILE "logged_hunt"
@@ -29,6 +30,8 @@ void view_treasure(const char *hunt_id, int treasure_id);
 void remove_treasure(const char *hunt_id, int treasure_id);
 void remove_hunt(const char *hunt_id);
 void log_operation(const char *hunt_id, const char *operation, const char *details);
+void handle_sigusr1(int sig);
+void handle_sigusr2(int sig);
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -36,14 +39,24 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    if (strcmp(argv[1], "help") == 0) {
-        printf("Available commands:\n");
-        printf("  add <hunt_id> [treasure_id]       - Create a hunt or add a treasure to a hunt\n");
-        printf("  list <hunt_id>                    - List all treasures in a hunt\n");
-        printf("  view <hunt_id> <treasure_id>      - View details of a specific treasure\n");
-        printf("  remove_treasure <hunt_id> <treasure_id> - Remove a specific treasure from a hunt\n");
-        printf("  remove_hunt <hunt_id>             - Remove an entire hunt\n");
-        return EXIT_SUCCESS;
+    if (strcmp(argv[1], "monitor") == 0) {
+        // Monitor mode
+        printf("Monitor process started. Waiting for commands...\n");
+
+        // Set up signal handlers
+        struct sigaction sa_usr1, sa_usr2;
+        sa_usr1.sa_handler = handle_sigusr1;
+        sa_usr1.sa_flags = SA_RESTART;
+        sigaction(SIGUSR1, &sa_usr1, NULL);
+
+        sa_usr2.sa_handler = handle_sigusr2;
+        sa_usr2.sa_flags = SA_RESTART;
+        sigaction(SIGUSR2, &sa_usr2, NULL);
+
+        // Wait indefinitely for signals
+        while (1) {
+            pause(); // Wait for a signal
+        }
     }
 
     const char *operation = argv[1];
@@ -417,6 +430,9 @@ void handle_sigusr1(int sig) {
 void handle_sigusr2(int sig) {
     (void)sig;
     printf("Monitor process terminating...\n");
-    usleep(500000); 
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 500000000;
+    nanosleep(&ts, NULL); 
     exit(0);
 }
