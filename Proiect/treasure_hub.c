@@ -39,6 +39,15 @@ void start_monitor() {
     }
 
     monitor_running = 1;
+
+    FILE *output_file = fopen("monitor_output.txt", "w");
+    if (!output_file) {
+        perror("Error opening monitor_output.txt");
+        return;
+    }
+    fprintf(output_file, "Monitor process started with PID %d.\n", monitor_pid);
+    fclose(output_file);
+
     printf("Monitor process started with PID %d.\n", monitor_pid);
 }
 
@@ -68,7 +77,7 @@ void send_command_to_monitor(const char *command) {
             perror("Error reading hunt ID");
             return;
         }
-        hunt_id[strcspn(hunt_id, "\n")] = '\0'; // Remove newline
+        hunt_id[strcspn(hunt_id, "\n")] = '\0';
         strncat(full_command, " ", sizeof(full_command) - strlen(full_command) - 1);
         strncat(full_command, hunt_id, sizeof(full_command) - strlen(full_command) - 1);
 
@@ -79,7 +88,7 @@ void send_command_to_monitor(const char *command) {
                 perror("Error reading treasure ID");
                 return;
             }
-            treasure_id[strcspn(treasure_id, "\n")] = '\0'; // Remove newline
+            treasure_id[strcspn(treasure_id, "\n")] = '\0'; 
             strncat(full_command, " ", sizeof(full_command) - strlen(full_command) - 1);
             strncat(full_command, treasure_id, sizeof(full_command) - strlen(full_command) - 1);
         }
@@ -91,10 +100,24 @@ void send_command_to_monitor(const char *command) {
         return;
     }
 
-    fprintf(command_file, "%s\n", full_command); // Write the full command to the file
+    fprintf(command_file, "%s\n", full_command); 
     fclose(command_file);
 
-    kill(monitor_pid, SIGUSR1); // Notify the monitor of the new command
+    kill(monitor_pid, SIGUSR1); 
+
+    sleep(1); 
+
+    FILE *output_file = fopen("monitor_output.txt", "r");
+    if (!output_file) {
+        perror("Error opening output file");
+        return;
+    }
+
+    char line[256];
+    while (fgets(line, sizeof(line), output_file)) {
+        printf("%s", line); 
+    }
+    fclose(output_file);
 }
 
 int main() {
@@ -105,17 +128,15 @@ int main() {
 
     char input[256];
     while (1) {
-        printf("treasure_hub> ");
+        printf("treasure_hub> "); // Display the prompt
         if (!fgets(input, sizeof(input), stdin)) {
             break;
         }
 
-        input[strcspn(input, "\n")] = '\0'; 
+        input[strcspn(input, "\n")] = '\0'; // Remove newline character
 
         if (strcmp(input, "start_monitor") == 0) {
             start_monitor();
-        // } else if (strcmp(input, "list_hunts") == 0) {
-        //     send_command_to_monitor("list_hunts");
         } else if (strcmp(input, "list_hunt") == 0) {
             send_command_to_monitor("list_hunt");
         } else if (strcmp(input, "view_treasure") == 0) {
@@ -137,7 +158,7 @@ int main() {
         printf("Stopping monitor before exiting...\n");
         stop_monitor();
         while (monitor_running) {
-            sleep(1); 
+            sleep(1); // Wait for the monitor to terminate
         }
     }
 
