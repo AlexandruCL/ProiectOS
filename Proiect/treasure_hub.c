@@ -135,7 +135,15 @@ int main() {
 
         input[strcspn(input, "\n")] = '\0'; // Remove newline character
 
-        if (strcmp(input, "start_monitor") == 0) {
+        if(strcmp(input, "help") == 0){
+            printf("Available commands:\n");
+            printf("start_monitor - Start the monitor process\n");
+            printf("list_allhunts - List all hunts\n");
+            printf("list_hunt - List treasures in a specific hunt\n");
+            printf("view_treasure - View details of a specific treasure\n");
+            printf("stop_monitor - Stop the monitor process\n");
+            printf("exit - Exit the treasure_hub\n");
+        }else if (strcmp(input, "start_monitor") == 0) {
             start_monitor();
         } else if(strcmp(input, "list_allhunts") == 0) {
             send_command_to_monitor("list_allhunts");

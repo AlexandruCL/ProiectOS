@@ -421,24 +421,17 @@ void list_hunts(FILE *output_file) {
     }
 
     struct dirent *entry;
-    fprintf(output_file, "Listing all hunts:\n");
 
     while ((entry = readdir(dir)) != NULL) {
-        // Skip "." and ".." entries
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
 
         char hunt_id[256];
         snprintf(hunt_id, sizeof(hunt_id), "%s", entry->d_name);
-
-        // Call list_hunt to display all information about the hunt
-        fprintf(output_file, "\nDetails for Hunt ID: %s\n", hunt_id);
-        int stdout_backup = dup(STDOUT_FILENO); // Backup stdout
-        dup2(fileno(output_file), STDOUT_FILENO); // Redirect stdout to the output file
+        printf("\n");
         list_hunt(hunt_id); // Call list_hunt to display hunt details
-        dup2(stdout_backup, STDOUT_FILENO); // Restore stdout
-        close(stdout_backup);
+        printf("\n");
     }
 
     closedir(dir);
