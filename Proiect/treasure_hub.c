@@ -137,7 +137,9 @@ int main() {
 
         if (strcmp(input, "start_monitor") == 0) {
             start_monitor();
-        } else if (strcmp(input, "list_hunt") == 0) {
+        } else if(strcmp(input, "list_allhunts") == 0) {
+            send_command_to_monitor("list_allhunts");
+        }else if (strcmp(input, "list_hunt") == 0) {
             send_command_to_monitor("list_hunt");
         } else if (strcmp(input, "view_treasure") == 0) {
             send_command_to_monitor("view_treasure");

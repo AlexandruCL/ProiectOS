@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <signal.h>
+#include <dirent.h>
 #define MAX_CLUE_LENGTH 256
 #define TREASURE_FILE "treasures.dat"
 #define LOG_FILE "logged_hunt"
@@ -411,6 +412,38 @@ void log_operation(const char *hunt_id, const char *operation, const char *detai
     fclose(log_file);
 }
 
+void list_hunts(FILE *output_file) {
+    DIR *dir = opendir("hunt");
+    if (!dir) {
+        perror("Error opening hunt directory");
+        fprintf(output_file, "Error: Could not open hunt directory.\n");
+        return;
+    }
+
+    struct dirent *entry;
+    fprintf(output_file, "Listing all hunts:\n");
+
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip "." and ".." entries
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        char hunt_id[256];
+        snprintf(hunt_id, sizeof(hunt_id), "%s", entry->d_name);
+
+        // Call list_hunt to display all information about the hunt
+        fprintf(output_file, "\nDetails for Hunt ID: %s\n", hunt_id);
+        int stdout_backup = dup(STDOUT_FILENO); // Backup stdout
+        dup2(fileno(output_file), STDOUT_FILENO); // Redirect stdout to the output file
+        list_hunt(hunt_id); // Call list_hunt to display hunt details
+        dup2(stdout_backup, STDOUT_FILENO); // Restore stdout
+        close(stdout_backup);
+    }
+
+    closedir(dir);
+}
+
 void handle_sigusr1(int sig) {
     (void)sig;
     FILE *command_file = fopen("monitor_command.txt", "r");
@@ -437,7 +470,9 @@ void handle_sigusr1(int sig) {
         char *hunt_id = strtok(NULL, " ");
         char *treasure_id = strtok(NULL, " ");
 
-        if (strcmp(operation, "list_hunt") == 0) {
+        if(strcmp(operation, "list_allhunts") == 0){
+            list_hunts(output_file);
+        }else if (strcmp(operation, "list_hunt") == 0) {
             if (hunt_id) {
                 fprintf(output_file, "Listing treasures for hunt ID: %s\n", hunt_id);
                 // Redirect the output of list_hunt to the file
