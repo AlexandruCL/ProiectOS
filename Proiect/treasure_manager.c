@@ -60,6 +60,20 @@ int main(int argc, char *argv[]) {
         }
     }
 
+        // Open the monitor_pipe for writing
+        int pipe_fd = open("monitor_pipe", O_WRONLY);
+        if (pipe_fd == -1) {
+            perror("Error opening monitor_pipe");
+            return EXIT_FAILURE;
+        }
+    
+        FILE *output_stream = fdopen(pipe_fd, "w");
+        if (!output_stream) {
+            perror("Error opening output stream");
+            close(pipe_fd);
+            return EXIT_FAILURE;
+        }
+
     const char *operation = argv[1];
     const char *hunt_id = argv[2];
 
@@ -76,14 +90,14 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
     } else if (strcmp(operation, "list") == 0) {
-        list_hunt(hunt_id);
+        list_hunt(hunt_id, output_stream);
     } else if (strcmp(operation, "view") == 0) {
         if (argc < 4) {
             fprintf(stderr, "Usage: %s view <hunt_id> <treasure_id>\n", argv[0]);
             return EXIT_FAILURE;
         }
         int treasure_id = atoi(argv[3]);
-        view_treasure(hunt_id, treasure_id);
+        view_treasure(hunt_id, treasure_id, output_stream);
     } else if (strcmp(operation, "remove_treasure") == 0) {
         if (argc < 4) {
             fprintf(stderr, "Usage: %s remove_treasure <hunt_id> <treasure_id>\n", argv[0]);
@@ -265,16 +279,18 @@ void view_treasure(const char *hunt_id, int treasure_id, FILE *output_stream) {
     }
 
     Treasure treasure;
+    fprintf(output_stream, "Hunt: %s\n", hunt_id);
+    fprintf(output_stream, "Treasure ID: %d\n", treasure_id);
     int found = 0;
     while (read(fd, &treasure, sizeof(Treasure)) > 0) {
         if (treasure.id == treasure_id) {
-            printf("ID: %d, Username: %s, Latitude: %.2f, Longitude: %.2f, Clue: %s, Value: %d\n",
+            fprintf(output_stream, "ID: %d, Username: %s, Latitude: %.2f, Longitude: %.2f, Clue: %s, Value: %d\n",
                    treasure.id, treasure.username, treasure.latitude, treasure.longitude, treasure.clue, treasure.value);
             found = 1;
         }
     }
     if(!found){
-        printf("Treasure with ID %d not found.\n", treasure_id);
+        fprintf(output_stream, "Treasure with ID %d not found.\n", treasure_id);
     }
     if(found){
         char log_details[512];
