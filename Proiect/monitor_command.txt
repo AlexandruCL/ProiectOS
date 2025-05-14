@@ -1,1 +1,1 @@
-list_hunt hunt1
+list_allhunts

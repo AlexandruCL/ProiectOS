@@ -6,6 +6,8 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <dirent.h>
+#include <fcntl.h>
 
 pid_t monitor_pid = -1; 
 int monitor_running = 0; 
@@ -120,6 +122,55 @@ void send_command_to_monitor(const char *command) {
     fclose(output_file);
 }
 
+void calculate_score() {
+    DIR *dir = opendir("hunt");
+    if (!dir) {
+        perror("Error opening hunt directory");
+        return;
+    }
+
+    // Open the monitor_pipe for writing
+    int pipe_fd = open("monitor_pipe", O_WRONLY);
+    if (pipe_fd == -1) {
+        perror("Error opening monitor_pipe");
+        closedir(dir);
+        return;
+    }
+
+    FILE *pipe_stream = fdopen(pipe_fd, "w");
+    if (!pipe_stream) {
+        perror("Error opening pipe stream");
+        close(pipe_fd);
+        closedir(dir);
+        return;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            // Child process: Redirect stdout to the pipe and execute the external program
+            dup2(pipe_fd, STDOUT_FILENO);
+            execl("./calculate_score", "./calculate_score", entry->d_name, NULL);
+            perror("Error executing calculate_score");
+            exit(EXIT_FAILURE);
+        } else if (pid > 0) {
+            // Parent process: Wait for the child process to finish
+            int status;
+            waitpid(pid, &status, 0);
+        } else {
+            perror("Error forking process");
+        }
+    }
+
+    fclose(pipe_stream);
+    closedir(dir);
+}
+
 int main() {
     struct sigaction sa;
     sa.sa_handler = handle_sigchld;
@@ -143,6 +194,8 @@ int main() {
             printf("view_treasure - View details of a specific treasure\n");
             printf("stop_monitor - Stop the monitor process\n");
             printf("exit - Exit the treasure_hub\n");
+        }else if(strcmp(input, "calculate_score") == 0) {
+            calculate_score();
         }else if (strcmp(input, "start_monitor") == 0) {
             start_monitor();
         } else if(strcmp(input, "list_allhunts") == 0) {

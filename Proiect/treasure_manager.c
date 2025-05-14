@@ -26,8 +26,8 @@ typedef struct {
 
 // Function prototypes
 void add_treasure(const char *hunt_id, const char *treasure_id);
-void list_hunt(const char *hunt_id);
-void view_treasure(const char *hunt_id, int treasure_id);
+void list_hunt(const char *hunt_id, FILE *output_stream);
+void view_treasure(const char *hunt_id, int treasure_id, FILE *output_stream);
 void remove_treasure(const char *hunt_id, int treasure_id);
 void remove_hunt(const char *hunt_id);
 void log_operation(const char *hunt_id, const char *operation, const char *details);
@@ -220,9 +220,15 @@ void add_treasure(const char *hunt_id, const char *treasure_id) {
     close(fd);
 }
 
-void list_hunt(const char *hunt_id) {
+void list_hunt(const char *hunt_id, FILE *output_stream) {
     char file_path[256];
     snprintf(file_path, sizeof(file_path), "hunt/%s/%s", hunt_id, TREASURE_FILE);
+
+    int fd = open(file_path, O_RDONLY);
+    if (fd == -1) {
+        fprintf(output_stream, "Error opening treasure file for hunt ID: %s\n", hunt_id);
+        return;
+    }
 
     // Get file information
     struct stat file_stat;
@@ -231,22 +237,15 @@ void list_hunt(const char *hunt_id) {
         return;
     }
 
-    printf("Hunt: %s\n", hunt_id);
-    printf("File Size: %ld bytes\n", file_stat.st_size);
-    printf("Last Modified: %s", ctime(&file_stat.st_mtime));
-
-    // Open the treasures file
-    int fd = open(file_path, O_RDONLY);
-    if (fd == -1) {
-        perror("Error opening treasure file");
-        return;
-    }
+    fprintf(output_stream,"Hunt: %s\n", hunt_id);
+    fprintf(output_stream,"File Size: %ld bytes\n", file_stat.st_size);
+    fprintf(output_stream,"Last Modified: %s", ctime(&file_stat.st_mtime));
 
     // Read and display treasures
     Treasure treasure;
-    printf("Treasures:\n");
+    fprintf(output_stream,"Treasures:\n");
     while (read(fd, &treasure, sizeof(Treasure)) > 0) {
-        printf("ID: %d, Username: %s, Latitude: %.2f, Longitude: %.2f, Clue: %s, Value: %d\n",
+        fprintf(output_stream,"ID: %d, Username: %s, Latitude: %.2f, Longitude: %.2f, Clue: %s, Value: %d\n",
                treasure.id, treasure.username, treasure.latitude, treasure.longitude, treasure.clue, treasure.value);
     }
 
@@ -256,7 +255,7 @@ void list_hunt(const char *hunt_id) {
     log_operation(hunt_id, "list_hunt", log_details);
 }
 
-void view_treasure(const char *hunt_id, int treasure_id) {
+void view_treasure(const char *hunt_id, int treasure_id, FILE *output_stream) {
     char file_path[256];
     snprintf(file_path, sizeof(file_path), "hunt/%s/%s", hunt_id, TREASURE_FILE);
     int fd = open(file_path, O_RDONLY);
@@ -430,6 +429,7 @@ void list_hunts(FILE *output_file) {
         char hunt_id[256];
         snprintf(hunt_id, sizeof(hunt_id), "%s", entry->d_name);
 
+        // Calculate the total number of treasures in this hunt
         char file_path[256];
         snprintf(file_path, sizeof(file_path), "hunt/%s/%s", hunt_id, TREASURE_FILE);
 
@@ -441,13 +441,11 @@ void list_hunts(FILE *output_file) {
 
         Treasure treasure;
         int max_id = 0;
-
         while (read(fd, &treasure, sizeof(Treasure)) > 0) {
             if (treasure.id > max_id) {
                 max_id = treasure.id;
             }
         }
-
         close(fd);
 
         fprintf(output_file, "Hunt ID: %s - Total Treasures: %d\n", hunt_id, max_id);
@@ -469,44 +467,47 @@ void handle_sigusr1(int sig) {
         command[strcspn(command, "\n")] = '\0'; // Remove newline
         printf("Executing command: %s\n", command);
 
-        // Redirect output to a file
-        FILE *output_file = fopen("monitor_output.txt", "w");
-        if (!output_file) {
-            perror("Error opening output file");
-            fclose(command_file);
-            return;
-        }
-
         // Parse the command
         char *operation = strtok(command, " ");
         char *hunt_id = strtok(NULL, " ");
         char *treasure_id = strtok(NULL, " ");
 
-        if(strcmp(operation, "list_allhunts") == 0){
-            list_hunts(output_file);
-        }else if (strcmp(operation, "list_hunt") == 0) {
+        // Open the monitor_pipe for communication
+        int pipe_fd = open("monitor_pipe", O_WRONLY);
+        if (pipe_fd == -1) {
+            perror("Error opening monitor_pipe");
+            fclose(command_file);
+            return;
+        }
+
+        FILE *output_stream = fdopen(pipe_fd, "w");
+        if (!output_stream) {
+            perror("Error opening output stream");
+            close(pipe_fd);
+            fclose(command_file);
+            return;
+        }
+
+        // Execute the appropriate command
+        if (strcmp(operation, "list_allhunts") == 0) {
+            list_hunts(output_stream);
+        } else if (strcmp(operation, "list_hunt") == 0) {
             if (hunt_id) {
-                fprintf(output_file, "Listing treasures for hunt ID: %s\n", hunt_id);
-                // Redirect the output of list_hunt to the file
-                // Example: list_hunt(hunt_id, output_file);
-                list_hunt(hunt_id); // Modify list_hunt to accept output_file if needed
+                list_hunt(hunt_id, output_stream);
             } else {
-                fprintf(output_file, "Error: Hunt ID is required for list_hunt.\n");
+                fprintf(output_stream, "Error: Hunt ID is required for list_hunt.\n");
             }
         } else if (strcmp(operation, "view_treasure") == 0) {
             if (hunt_id && treasure_id) {
-                fprintf(output_file, "Viewing treasure ID %s in hunt ID: %s\n", treasure_id, hunt_id);
-                // Redirect the output of view_treasure to the file
-                // Example: view_treasure(hunt_id, atoi(treasure_id), output_file);
-                view_treasure(hunt_id, atoi(treasure_id)); // Modify view_treasure to accept output_file if needed
+                view_treasure(hunt_id, atoi(treasure_id), output_stream);
             } else {
-                fprintf(output_file, "Error: Hunt ID and Treasure ID are required for view_treasure.\n");
+                fprintf(output_stream, "Error: Hunt ID and Treasure ID are required for view_treasure.\n");
             }
         } else {
-            fprintf(output_file, "Unknown command: %s\n", operation);
+            fprintf(output_stream, "Unknown command: %s\n", operation);
         }
 
-        fclose(output_file);
+        fclose(output_stream);
     }
     fclose(command_file);
 }
