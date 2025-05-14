@@ -429,9 +429,28 @@ void list_hunts(FILE *output_file) {
 
         char hunt_id[256];
         snprintf(hunt_id, sizeof(hunt_id), "%s", entry->d_name);
-        printf("\n");
-        list_hunt(hunt_id); // Call list_hunt to display hunt details
-        printf("\n");
+
+        char file_path[256];
+        snprintf(file_path, sizeof(file_path), "hunt/%s/%s", hunt_id, TREASURE_FILE);
+
+        int fd = open(file_path, O_RDONLY);
+        if (fd == -1) {
+            fprintf(output_file, "Hunt ID: %s - Error opening treasure file.\n", hunt_id);
+            continue;
+        }
+
+        Treasure treasure;
+        int max_id = 0;
+
+        while (read(fd, &treasure, sizeof(Treasure)) > 0) {
+            if (treasure.id > max_id) {
+                max_id = treasure.id;
+            }
+        }
+
+        close(fd);
+
+        fprintf(output_file, "Hunt ID: %s - Total Treasures: %d\n", hunt_id, max_id);
     }
 
     closedir(dir);
