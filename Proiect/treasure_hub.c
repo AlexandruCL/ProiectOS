@@ -188,6 +188,7 @@ int main() {
 
         if(strcmp(input, "help") == 0){
             printf("Available commands:\n");
+            printf("calculate_score - Calculate scores for all hunts\n");
             printf("start_monitor - Start the monitor process\n");
             printf("list_allhunts - List all hunts\n");
             printf("list_hunt - List treasures in a specific hunt\n");

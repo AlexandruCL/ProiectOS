@@ -1,1 +1,1 @@
-view_treasure hunt1 1
+view_treasure hunt3 1

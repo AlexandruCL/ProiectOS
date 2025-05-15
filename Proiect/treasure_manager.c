@@ -40,6 +40,8 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    FILE *output_stream = stdout; // Default to stdout
+
     if (strcmp(argv[1], "monitor") == 0) {
         // Monitor mode
         printf("Monitor process started. Waiting for commands...\n");
@@ -60,19 +62,21 @@ int main(int argc, char *argv[]) {
         }
     }
 
-        // Open the monitor_pipe for writing
+    // Open the monitor_pipe only if argv[1] is "monitor"
+    if (strcmp(argv[1], "monitor") == 0) {
         int pipe_fd = open("monitor_pipe", O_WRONLY);
         if (pipe_fd == -1) {
             perror("Error opening monitor_pipe");
             return EXIT_FAILURE;
         }
-    
-        FILE *output_stream = fdopen(pipe_fd, "w");
+
+        output_stream = fdopen(pipe_fd, "w");
         if (!output_stream) {
             perror("Error opening output stream");
             close(pipe_fd);
             return EXIT_FAILURE;
         }
+    }
 
     const char *operation = argv[1];
     const char *hunt_id = argv[2];
@@ -90,7 +94,7 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
     } else if (strcmp(operation, "list") == 0) {
-        list_hunt(hunt_id, output_stream);
+            list_hunt(hunt_id, output_stream);
     } else if (strcmp(operation, "view") == 0) {
         if (argc < 4) {
             fprintf(stderr, "Usage: %s view <hunt_id> <treasure_id>\n", argv[0]);

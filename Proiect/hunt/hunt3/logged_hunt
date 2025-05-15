@@ -1,0 +1,6 @@
+[Thu May 15 12:04:30 2025] create_hunt: Hunt created
+[Thu May 15 12:04:30 2025] create_symlink: Symlink created successfully
+[Thu May 15 12:04:41 2025] add_treasure: Added treasure ID 1, Username: 1, Latitude: 1.00, Longitude: 2.00, Clue: 3, Value: 20
+[Thu May 15 12:04:58 2025] list_hunt: Listed all treasures in hunt 'hunt3'
+[Thu May 15 12:06:09 2025] list_hunt: Listed all treasures in hunt 'hunt3'
+[Thu May 15 12:06:25 2025] view_treasure: Viewed treasure ID 1, Username: 1, Latitude: 1.00, Longitude: 2.00, Clue: 3, Value: 20
